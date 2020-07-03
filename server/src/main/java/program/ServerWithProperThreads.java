@@ -122,14 +122,21 @@ public class ServerWithProperThreads {
         logger.info("Вызвана команада: " + command.toString());
         logger.info("Комманда обработана успешно. Ответ:" + (w.toString()));
 
-        w.shatter();
 
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        objectOutputStream.writeObject(w);
-        buf = ByteBuffer.wrap(byteArrayOutputStream.toByteArray());
-        messages.add(buf);
-        objectOutputStream.flush();
+        int number = 0;
+        w.shatter();
+        Writer subW;
+
+        do {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+            subW = w.getSubWriter((number)*10,(number + 1)*10);
+            objectOutputStream.writeObject(subW);
+            buf = ByteBuffer.wrap(byteArrayOutputStream.toByteArray());
+            messages.add(buf);
+            objectOutputStream.close();
+            number++;
+        } while (!subW.isEnd());
     }
 
     private static void answer(SocketChannel s, ConcurrentLinkedQueue<ByteBuffer> messages, AtomicBoolean killFlag) {
@@ -137,13 +144,14 @@ public class ServerWithProperThreads {
             while (!(killFlag.get() || globalKillFlag.get())) {
                 ByteBuffer buf;
                 if (!messages.isEmpty()) {
+                    Writer.writeln(messages.size());
                     buf = messages.poll();
                     s.write(buf);
                 }
                 Thread.sleep(500);
             }
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            Writer.writeln("Не удалось отправить все данные.");
         }
         System.out.println("Закрылся answer");
         killFlag.set(true);

@@ -1,10 +1,7 @@
 package program;
 
 import command.Command;
-import dopFiles.AbstractReader;
-import dopFiles.Route;
-import dopFiles.User;
-import dopFiles.Writer;
+import dopFiles.*;
 import exceptions.FailedCheckException;
 
 import java.io.FileNotFoundException;
