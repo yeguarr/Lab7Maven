@@ -23,14 +23,19 @@ public class Reader extends AbstractReader {
      * считывание строки
      */
     @Override
-    public String read(Writer w) /*throws EndOfFileException */ {
+    public String read(Writer w) {
         if (scan.hasNextLine()) {
             String line = scan.nextLine();
             w.addToList(false, line + "\n");
             return line;
         }
         w.addToList(false, "Конец файла." + "\n");
-        return null; //непроверенная неизвестность "_"
-        //throw new EndOfFileException("Преждевременный конец файла!");
+        return null;
+    }
+    public String read() {
+        if (scan.hasNextLine()) {
+            return scan.nextLine();
+        }
+        return null;
     }
 }

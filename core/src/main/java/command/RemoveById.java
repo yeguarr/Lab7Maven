@@ -1,10 +1,12 @@
 package command;
 
+import dopFiles.User;
+
 public class RemoveById extends Command {
     Integer id;
 
-    public RemoveById(Integer id) {
-        super(Commands.REMOVE_BY_ID);
+    public RemoveById(User user, Integer id) {
+        super(user, Commands.REMOVE_BY_ID);
         this.id = id;
     }
 

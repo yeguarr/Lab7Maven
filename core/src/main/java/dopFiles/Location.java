@@ -9,21 +9,6 @@ import java.io.Serializable;
  */
 
 public class Location implements Serializable {
-    /**
-     * Проверка на тип Long
-     */
-    public static Checker<Long> xyzCheck = (Long L) -> {
-        if (L != null) return L;
-        else throw new FailedCheckException();
-    };
-    /**
-     * Проверка на тип String
-     */
-    public static Checker<String> nameCheck = (String s) -> {
-        if (s == null) return null;
-        else if (s.length() <= 867) return s;
-        throw new FailedCheckException();
-    };
     private Long x; //Поле не может быть null
     private Long y; //Поле не может быть null
     private long z; //????

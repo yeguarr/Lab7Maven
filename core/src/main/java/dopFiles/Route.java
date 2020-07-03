@@ -10,28 +10,6 @@ import java.time.ZonedDateTime;
  */
 
 public class Route implements Comparable<Route>, Serializable {
-    /**
-     * Проверка на тип Long
-     */
-    public static Checker<Long> distanceCheck = (Long L) -> {
-        if (L == null) return null;
-        else if (L > 1) return L;
-        throw new FailedCheckException();
-    };
-    /**
-     * Проверка на тип Integer
-     */
-    public static Checker<Integer> idCheck = (Integer I) -> {
-        if (I != null && I > 0) return I;
-        else throw new FailedCheckException();
-    };
-    /**
-     * Проверка на тип String
-     */
-    public static Checker<String> nameCheck = (String S) -> {
-        if (S != null && S.length() != 0) return S;
-        else throw new FailedCheckException();
-    };
     private Integer id; //Поле не может быть null, Значение поля должно быть больше 0, Значение этого поля должно быть уникальным, Значение этого поля должно генерироваться автоматически
     private String name; //Поле не может быть null, Строка не может быть пустой
     private Coordinates coordinates; //Поле не может быть null

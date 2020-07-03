@@ -3,12 +3,15 @@ package program;
 import command.Command;
 import dopFiles.AbstractReader;
 import dopFiles.Route;
+import dopFiles.User;
 import dopFiles.Writer;
 import exceptions.FailedCheckException;
 
 import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Класс - обработчик команд с консоли
@@ -25,7 +28,7 @@ public class CommanderServer {
             case INFO:
                 return info(c);
             case SHOW:
-                return show(c);
+                return show(c, com);
             case ADD:
                 return add(c, com);
             case UPDATE:
@@ -33,7 +36,7 @@ public class CommanderServer {
             case REMOVE_BY_ID:
                 return removeById(c, com);
             case CLEAR:
-                return clear(c);
+                return clear(c, com);
             case EXECUTE_SCRIPT:
                 return executeScript(c, com);
             case ADD_IF_MIN:
@@ -43,15 +46,47 @@ public class CommanderServer {
             case REMOVE_LOWER:
                 return removeLower(c, com);
             case AVERAGE_OF_DISTANCE:
-                return averageOfDistance(c);
+                return averageOfDistance(c, com);
             case MIN_BY_CREATION_DATE:
-                return minByCreationDate(c);
+                return minByCreationDate(c, com);
             case PRINT_FIELD_ASCENDING_DISTANCE:
-                return printFieldAscendingDistance(c);
+                return printFieldAscendingDistance(c, com);
+            case LOGIN:
+                return login(c, com);
+            case REGISTER:
+                return register(c, com);
             default:
                 Writer.writeln("Такой команды нет");
         }
         return new Writer();
+    }
+
+    private static Writer register(Collection c, Command com) {
+        Writer w = new Writer();
+        if (!c.isLoginUsed(com.getUser().login)) {
+            c.map.put(com.getUser(), new LinkedList<>());
+            w.addToList(true, "Пользователь успешно зарегестрирован.");
+        }
+        else {
+            w.addToList(true, "Пользователь с таким логином уже создан.");
+            w.addToList(true, "Попробуйте, пожалуйста, другой логин.");
+        }
+
+        w.addToList(false,"end");
+        return w;
+    }
+
+    private static Writer login(Collection c, Command com) {
+        Writer w = new Writer();
+        if (c.isUserInMap(com.getUser()))
+            w.addToList(true, "Вы вошли под логином: " + com.getUser().login);
+        else {
+            w.addToList(true, "Не удаётся войти.");
+            w.addToList(true, "Пожалуйста, проверьте правильность написания логина и пароля.");
+        }
+
+        w.addToList(false,"end");
+        return w;
     }
 
     /**
@@ -75,7 +110,9 @@ public class CommanderServer {
                         "remove_lower {element} : удалить из коллекции все элементы, меньшие, чем заданный\n" +
                         "average_of_distance : вывести среднее значение поля distance для всех элементов коллекции\n" +
                         "min_by_creation_date : вывести любой объект из коллекции, значение поля creationDate которого является минимальным\n" +
-                        "print_field_ascending_distance : вывести значения поля distance в порядке возрастания"
+                        "print_field_ascending_distance : вывести значения поля distance в порядке возрастания\n" +
+                        "login : авторизоваться под определенным пользователем\n" +
+                        "register : зарегестрировать пользователя"
         );
 
         w.addToList(false,"end");
@@ -87,23 +124,44 @@ public class CommanderServer {
      */
     public static Writer info(Collection collection) {
         Writer w = new Writer();
-        w.addToList(true, "Тип коллекции: " + collection.list.getClass().getName());
-        w.addToList(true, "Колличество элементов: " + collection.list.size());
+        w.addToList(true, "Тип коллекции: " + collection.map.getClass().getName());
+        w.addToList(true, "Колличество зарегестрированных пользователей: " + collection.map.size());
         w.addToList(true, "Коллеция создана: " + collection.getDate());
 
         w.addToList(false,"end");
         return w;
     }
+    /**
+     * Выводит все элементы списка
+     */
+    public static Writer show(Collection c, Command com) {
+        Writer w = new Writer();
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            for (User user : c.map.keySet()) {
+                w.addToList(true, "Все добавленные элементы поользователя: " + user.login);
+                if (c.map.get(user).isEmpty())
+                    w.addToList(true, "В коллекции нет элементов");
+                else
+                    c.map.get(user).forEach(r -> w.addToList(true, r.toString()));
+            }
+        }
 
+        w.addToList(false,"end");
+        return w;
+    }
     /**
      * Выводит значения поля distance в порядке возрастания
      */
-    public static Writer printFieldAscendingDistance(Collection c) {
+    public static Writer printFieldAscendingDistance(Collection c, Command com) {
         Writer w = new Writer();
-        if (c.list.size() > 0)
-            c.list.stream().filter(r -> r.getDistance() != null).map(Route::getDistance).sorted().forEach(dis -> w.addToList(true, dis));
-        else
-            w.addToList(true, "В коллекции нет элементов");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            if (list.size() > 0)
+                list.stream().filter(r -> r.getDistance() != null).map(Route::getDistance).sorted().forEach(dis -> w.addToList(true, dis));
+            else
+                w.addToList(true, "В доступной вам коллекции нет элементов");
+        }
 
         w.addToList(false,"end");
         return w;
@@ -112,12 +170,15 @@ public class CommanderServer {
     /**
      * выводит объект из коллекции, значение поля creationDate которого является минимальным
      */
-    public static Writer minByCreationDate(Collection c) {
+    public static Writer minByCreationDate(Collection c, Command com) {
         Writer w = new Writer();
-        if (c.list.size() > 0)
-            w.addToList(true, c.list.stream().min(Comparator.comparing(Route::getCreationDate)).get());
-        else
-            w.addToList(true, "В коллекции нет элементов");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            if (list.size() > 0)
+                w.addToList(true, list.stream().min(Comparator.comparing(Route::getCreationDate)).get());
+            else
+                w.addToList(true, "В доступной вам коллекции нет элементов");
+        }
 
         w.addToList(false,"end");
         return w;
@@ -126,12 +187,15 @@ public class CommanderServer {
     /**
      * Выводит среднее значение поля distance
      */
-    public static Writer averageOfDistance(Collection c) {
+    public static Writer averageOfDistance(Collection c, Command com) {
         Writer w = new Writer();
-        if (c.list.size() > 0)
-            w.addToList(true, "Среднее значение distance: " + c.list.stream().filter(r -> r.getDistance() != null).mapToDouble(Route::getDistance).average().orElse(Double.NaN));
-        else
-            w.addToList(true, "В коллекции нет элементов");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            if (list.size() > 0)
+                w.addToList(true, "Среднее значение distance: " + list.stream().filter(r -> r.getDistance() != null).mapToDouble(Route::getDistance).average().orElse(Double.NaN));
+            else
+                w.addToList(true, "В доступной вам коллекции нет элементов");
+        }
 
         w.addToList(false,"end");
         return w;
@@ -143,10 +207,13 @@ public class CommanderServer {
     public static Writer removeLower(Collection c, Command com) {
         Writer w = new Writer();
         int id = c.getRandId();
-        Route newRoute = RouteWithId((Route) com.returnObj(), id);
-        c.list.stream().filter(route -> route.compareTo(newRoute) < 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
-        c.list.removeIf(route -> route.compareTo(newRoute) < 0);
-        Collections.sort(c.list);
+        Route newRoute = routeWithId((Route) com.returnObj(), id);
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            list.stream().filter(route -> route.compareTo(newRoute) < 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
+            list.removeIf(route -> route.compareTo(newRoute) < 0);
+            Collections.sort(list);
+        }
 
         w.addToList(false,"end");
         return w;
@@ -158,10 +225,13 @@ public class CommanderServer {
     public static Writer removeGreater(Collection c, Command com) {
         Writer w = new Writer();
         int id = c.getRandId();
-        Route newRoute = RouteWithId((Route) com.returnObj(), id);
-        c.list.stream().filter(route -> route.compareTo(newRoute) > 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
-        c.list.removeIf(route -> route.compareTo(newRoute) > 0);
-        Collections.sort(c.list);
+        Route newRoute = routeWithId((Route) com.returnObj(), id);
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            list.stream().filter(route -> route.compareTo(newRoute) > 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
+            list.removeIf(route -> route.compareTo(newRoute) > 0);
+            Collections.sort(list);
+        }
 
         w.addToList(false,"end");
         return w;
@@ -173,12 +243,15 @@ public class CommanderServer {
     public static Writer addIfMin(Collection c, Command com) {
         Writer w = new Writer();
         int id = c.getRandId();
-        Route newRoute = RouteWithId((Route) com.returnObj(), id);
-        if (newRoute.compareTo(c.list.getFirst()) < 0) {
-            c.list.add(newRoute);
-            w.addToList(true, "Элемент успешно добавлен");
-        } else w.addToList(true, "Элемент не является минимальным в списке");
-        Collections.sort(c.list);
+        Route newRoute = routeWithId((Route) com.returnObj(), id);
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            if (newRoute.compareTo(list.get(0)) < 0) {
+                list.add(newRoute);
+                w.addToList(true, "Элемент успешно добавлен");
+            } else w.addToList(true, "Элемент не является минимальным в списке");
+            Collections.sort(list);
+        }
 
         w.addToList(false,"end");
         return w;
@@ -190,7 +263,7 @@ public class CommanderServer {
      */
     public static Writer executeScript(Collection c, Command command) {
         Writer w = new Writer();
-        String s = (String) command.returnObj();
+        /*String s = (String) command.returnObj();
         boolean programIsWorking = true;
         try (Reader reader = new Reader(s)) {
             if (RecursionHandler.isContains(s)) {
@@ -219,7 +292,7 @@ public class CommanderServer {
             w.addToList(true, "\u001B[31m" + "Файл содержит неправильные данные" + "\u001B[0m");
             RecursionHandler.removeLast();
         }
-
+*/
         w.addToList(false,"end");
         return w;
     }
@@ -227,12 +300,15 @@ public class CommanderServer {
     /**
      * Удаляет все элементы из коллекции
      */
-    public static Writer clear(Collection c) {
+    public static Writer clear(Collection c, Command com) {
         Writer w = new Writer();
-        c.list.clear();
-        w.addToList(true, "Коллекция очищена");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            list.clear();
+            w.addToList(true, "Доступная вам коллекция очищена");
+        }
 
-        w.addToList(false,"end");
+        w.addToList(false, "end");
         return w;
     }
 
@@ -241,17 +317,25 @@ public class CommanderServer {
      */
     public static Writer removeById(Collection c, Command com) {
         Writer w = new Writer();
-        Integer id = (Integer) com.returnObj();
-        Route r = c.searchById(id);
-        if (r == null) {
-            w.addToList(true, "Такого элемента нет");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            Integer id = (Integer) com.returnObj();
+            Route route = null;
+            for (Route r : list) {
+                if (r.getId().equals(id)) {
+                    route = r;
+                }
+            }
+            if (route == null) {
+                w.addToList(true, "Такого в дотупной вам коллекции элемента нет");
 
-            w.addToList(false,"end");
-            return w;
+                w.addToList(false, "end");
+                return w;
+            }
+            list.remove(route);
+            w.addToList(true, "Элемент с id: " + id + " успешно удален");
+            Collections.sort(list);
         }
-        c.list.remove(r);
-        w.addToList(true, "Элемент с id: " + id + " успешно удален");
-        Collections.sort(c.list);
 
         w.addToList(false,"end");
         return w;
@@ -262,30 +346,25 @@ public class CommanderServer {
      */
     public static Writer update(Collection c, Command com) {
         Writer w = new Writer();
-        int id = ((Route) com.returnObj()).getId();
-        Route r = c.searchById(id);
-        if (r == null) {
-            w.addToList(true, "Такого элемента нет");
-            w.addToList(false,"end");
-            return w;
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            int id = ((Route) com.returnObj()).getId();
+            Route route = null;
+            for (Route r : list) {
+                if (r.getId().equals(id)) {
+                    route = r;
+                }
+            }
+            if (route == null) {
+                w.addToList(true, "Такого в дотупной вам коллекции элемента нет");
+
+                w.addToList(false, "end");
+                return w;
+            }
+            list.set(list.indexOf(route), (Route) com.returnObj());
+            Collections.sort(list);
+            w.addToList(true, "Элемент с id: " + id + " успешно изменен");
         }
-        c.list.set(c.list.indexOf(r), (Route) com.returnObj());
-        Collections.sort(c.list);
-        w.addToList(true, "Элемент с id: " + id + " успешно изменен");
-
-        w.addToList(false,"end");
-        return w;
-    }
-
-    /**
-     * Выводит все элементы списка
-     */
-    public static Writer show(Collection c) {
-        Writer w = new Writer();
-        if (c.list.isEmpty())
-            w.addToList(true, "В коллекции нет элементов");
-        else
-            c.list.forEach(r -> w.addToList(true, r.toString()));
 
         w.addToList(false,"end");
         return w;
@@ -296,18 +375,31 @@ public class CommanderServer {
      */
     public static Writer add(Collection c, Command com) {
         Writer w = new Writer();
-        int id = c.getRandId();
-        c.list.add(RouteWithId((Route) com.returnObj(), id));
-        Collections.sort(c.list);
-        w.addToList(true, "Элемент с id: " + id + " успешно добавлен");
+        List<Route> list = properUser(w, com.getUser(), c);
+        if (list != null) {
+            int id = c.getRandId();
+            list.add(routeWithId((Route) com.returnObj(), id));
+            Collections.sort(list);
+            w.addToList(true, "Элемент с id: " + id + " успешно добавлен");
+        }
 
         w.addToList(false,"end");
         return w;
     }
 
-    public static Route RouteWithId(Route r, int id) {
+    public static Route routeWithId(Route r, int id) {
         r.setId(id);
         return r;
+    }
+
+    public static List<Route> properUser(Writer w, User user, Collection collection) {
+        if (collection.isUserInMap(user))
+            return collection.map.get(user);
+        else {
+            w.addToList(true, "Не удаётся выполнить команду.");
+            w.addToList(true, "Пожалуйста, проверьте правильность написания логина и пароля.");
+        }
+        return null;
     }
 }
 

@@ -1,12 +1,21 @@
 package command;
 
+import dopFiles.User;
+
 import java.io.Serializable;
 
 public class Command implements Serializable {
     Commands current;
 
-    public Command(Commands com) {
+    public User getUser() {
+        return user;
+    }
+
+    User user;
+
+    public Command(User user, Commands com) {
         current = com;
+        this.user = user;
     }
 
     public Commands getCurrent() {

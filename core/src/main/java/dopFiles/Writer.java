@@ -2,7 +2,6 @@ package dopFiles;
 
 import java.io.Serializable;
 import java.util.LinkedList;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 
@@ -21,8 +20,7 @@ public class Writer implements Serializable {
         toWrite.add(o.toString() + (isLn ? "\n" : ""));
     }
 
-    public void shatter()
-    {
+    public void shatter() {
         for (int i = 0; i < toWrite.size(); i++)
         {
             String s = toWrite.get(i);
@@ -34,15 +32,13 @@ public class Writer implements Serializable {
         }
     }
 
-    public Writer getSubWriter(int beg, int end)
-    {
+    public Writer getSubWriter(int beg, int end) {
         Writer w = new Writer();
         w.toWrite = this.toWrite.stream().skip(beg).limit(end-beg).collect(Collectors.toCollection(LinkedList::new));
         return w;
     }
 
-    public boolean isEnd()
-    {
+    public boolean isEnd() {
         //try {
             return toWrite.getLast().equals("end");
         /*}

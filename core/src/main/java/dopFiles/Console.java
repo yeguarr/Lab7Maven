@@ -1,8 +1,5 @@
-package program;
+package dopFiles;
 
-import dopFiles.AbstractReader;
-import dopFiles.Checker;
-import dopFiles.Writer;
 import exceptions.EndOfFileException;
 import exceptions.FailedCheckException;
 

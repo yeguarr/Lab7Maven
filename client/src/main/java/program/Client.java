@@ -3,7 +3,10 @@ package program;
 import command.Command;
 import command.Commands;
 import dopFiles.AbstractReader;
+import dopFiles.User;
+import dopFiles.Utils;
 import dopFiles.Writer;
+import dopFiles.Console;
 import exceptions.EndOfFileException;
 
 import java.io.*;
@@ -18,11 +21,12 @@ import java.util.Iterator;
 public class Client {
 
     private static boolean exit = false;
+    private static User user = new User("login", "password");
 
     public static void main(String[] args) {
         try {
             do {
-                InetSocketAddress addr = new InetSocketAddress(InetAddress.getByName("localhost"), 1);
+                InetSocketAddress addr = new InetSocketAddress(InetAddress.getByName("localhost"), 4329);
                 Selector selector = Selector.open();
                 SocketChannel sc = SocketChannel.open();
                 sc.configureBlocking(false);
@@ -42,7 +46,7 @@ public class Client {
                     Writer.writeln("\u001B[31m" + "Соединение разорвано." + "\u001B[0m");
                 }
                 sc.close();
-            } while (!exit && Console.handlerB("Попробовать переподключить клиент? boolean: ", CommanderClient.boolCheck));
+            } while (!exit && Console.handlerB("Попробовать переподключить клиент? boolean: ", Utils.boolCheck));
         } catch (IOException e) {
             Writer.writeln("\u001B[31m" + "Неправильное закрытие сокета." + "\u001B[0m");
         } catch (ClassNotFoundException e) {
@@ -89,7 +93,7 @@ public class Client {
 
                 Writer.write("\u001B[33m" + "Ожидание ввода команды: " + "\u001B[0m");
                 String[] com = AbstractReader.splitter(Console.console.read());
-                Command command = CommanderClient.switcher(com[0], com[1]);
+                Command command = CommanderClient.switcher(user, com[0], com[1]);
 
                 if (command == null)
                     return false;

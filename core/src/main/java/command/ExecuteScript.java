@@ -1,10 +1,12 @@
 package command;
 
+import dopFiles.User;
+
 public class ExecuteScript extends Command {
     String script;
 
-    public ExecuteScript(String script) {
-        super(Commands.EXECUTE_SCRIPT);
+    public ExecuteScript(User user, String script) {
+        super(user, Commands.EXECUTE_SCRIPT);
         this.script = script;
     }
 
