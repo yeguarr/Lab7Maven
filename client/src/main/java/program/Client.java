@@ -8,6 +8,7 @@ import dopFiles.Utils;
 import dopFiles.Writer;
 import dopFiles.Console;
 import exceptions.EndOfFileException;
+import exceptions.FailedCheckException;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -26,7 +27,12 @@ public class Client {
     public static void main(String[] args) {
         try {
             do {
-                InetSocketAddress addr = new InetSocketAddress(InetAddress.getByName("localhost"), 4329);
+                InetSocketAddress addr;
+                try {
+                     addr = new InetSocketAddress(args[0], Utils.portCheck.checker(Integer.parseInt(args[1])));
+                } catch (NumberFormatException |ArrayIndexOutOfBoundsException | FailedCheckException  e) {
+                    addr = new InetSocketAddress(InetAddress.getByName("localhost"), 4329);
+                }
                 Selector selector = Selector.open();
                 SocketChannel sc = SocketChannel.open();
                 sc.configureBlocking(false);

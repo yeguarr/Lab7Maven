@@ -39,20 +39,6 @@ public class Route implements Comparable<Route>, Serializable {
                 '}';
     }
 
-    /**
-     * Конвертирование элемента списка в удобный для сохранения формат
-     */
-    public String toCSVfile() {
-        String CSV = id + "," + name + "," + coordinates.getX() + "," + coordinates.getY() + "," + creationDate + ",";
-        if (from != null)
-            CSV += from.getX() + "," + from.getY() + "," + from.getZ() + "," + from.getName() + ",";
-        else
-            CSV += "null,,,,";
-        CSV += to.getX() + "," + to.getY() + "," + to.getZ() + "," + to.getName() + ",";
-        CSV += distance != null ? distance : "null";
-        return CSV;
-    }
-
     public Integer getId() {
         return id;
     }
@@ -88,6 +74,19 @@ public class Route implements Comparable<Route>, Serializable {
     public void setTo(Location to) {
         this.to = to;
     }
+
+    public Coordinates getCoordinates() {
+        return coordinates;
+    }
+
+    public Location getFrom() {
+        return from;
+    }
+
+    public Location getTo() {
+        return to;
+    }
+
 
     /**
      * Сравнение объектов. Сравнение объектов идет в первую очередь по имени, потом по дистанции

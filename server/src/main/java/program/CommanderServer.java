@@ -1,14 +1,16 @@
 package program;
 
 import command.Command;
+import command.CommandWithObj;
+import command.Commands;
+import command.RemoveById;
 import dopFiles.*;
 import exceptions.FailedCheckException;
 
 import java.io.FileNotFoundException;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Класс - обработчик команд с консоли
@@ -18,51 +20,52 @@ public class CommanderServer {
     /**
      * Обработка команд, вводимых с консоли
      */
-    public static Writer switcher(Command com, Collection c) {
+    public static Writer switcher(Command com, Collection c, PostgreSQL sqlRun) {
         switch (com.getCurrent()) {
-            case HELP:
+            case HELP://нет
                 return help();
-            case INFO:
+            case INFO://нет
                 return info(c);
-            case SHOW:
+            case SHOW://нет
                 return show(c, com);
-            case ADD:
-                return add(c, com);
-            case UPDATE:
-                return update(c, com);
-            case REMOVE_BY_ID:
-                return removeById(c, com);
-            case CLEAR:
-                return clear(c, com);
-            case EXECUTE_SCRIPT:
-                return executeScript(c, com);
-            case ADD_IF_MIN:
-                return addIfMin(c, com);
-            case REMOVE_GREATER:
-                return removeGreater(c, com);
-            case REMOVE_LOWER:
-                return removeLower(c, com);
-            case AVERAGE_OF_DISTANCE:
+            case ADD://да
+                return add(c, com, sqlRun);
+            case UPDATE://да
+                return update(c, com, sqlRun);
+            case REMOVE_BY_ID://да
+                return removeById(c, com, sqlRun);
+            case CLEAR://да
+                return clear(c, com, sqlRun);
+            case EXECUTE_SCRIPT://?
+                return executeScript(c, com, sqlRun);
+            case ADD_IF_MIN://да
+                return addIfMin(c, com, sqlRun);
+            case REMOVE_GREATER://да
+                return removeGreater(c, com, sqlRun);
+            case REMOVE_LOWER://да
+                return removeLower(c, com, sqlRun);
+            case AVERAGE_OF_DISTANCE://нет
                 return averageOfDistance(c, com);
-            case MIN_BY_CREATION_DATE:
+            case MIN_BY_CREATION_DATE://нет
                 return minByCreationDate(c, com);
-            case PRINT_FIELD_ASCENDING_DISTANCE:
+            case PRINT_FIELD_ASCENDING_DISTANCE://нет
                 return printFieldAscendingDistance(c, com);
-            case LOGIN:
+            case LOGIN://нет
                 return login(c, com);
-            case REGISTER:
-                return register(c, com);
+            case REGISTER://да
+                return register(c, com, sqlRun);
             default:
                 Writer.writeln("Такой команды нет");
         }
         return new Writer();
     }
 
-    private static Writer register(Collection c, Command com) {
+    private static Writer register(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
         if (!c.isLoginUsed(com.getUser().login)) {
-            c.map.put(com.getUser(), new LinkedList<>());
+            c.map.put(com.getUser(), new CopyOnWriteArrayList<>());
             w.addToList(true, "Пользователь успешно зарегестрирован.");
+            sqlRun.add(com);
         }
         else {
             w.addToList(true, "Пользователь с таким логином уже создан.");
@@ -201,15 +204,19 @@ public class CommanderServer {
     /**
      * Удаляет все элементы коллекции, которые меньше чем заданный
      */
-    public static Writer removeLower(Collection c, Command com) {
+    public static Writer removeLower(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
-        int id = c.getRandId();
-        Route newRoute = routeWithId((Route) com.returnObj(), id);
+        Route newRoute = (Route) com.returnObj();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
             list.stream().filter(route -> route.compareTo(newRoute) < 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
-            list.removeIf(route -> route.compareTo(newRoute) < 0);
-            Collections.sort(list);
+
+            list.removeIf(route -> {
+                boolean bool = route.compareTo(newRoute) < 0;
+                if (bool)
+                    sqlRun.add(new RemoveById(com.getUser(), newRoute.getId()));
+                return bool;
+            });
         }
 
         w.addToList(false,"end");
@@ -219,15 +226,18 @@ public class CommanderServer {
     /**
      * Удаляет все элементы коллекции, которые больше чем заданный
      */
-    public static Writer removeGreater(Collection c, Command com) {
+    public static Writer removeGreater(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
-        int id = c.getRandId();
-        Route newRoute = routeWithId((Route) com.returnObj(), id);
+        Route newRoute = (Route) com.returnObj();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
             list.stream().filter(route -> route.compareTo(newRoute) > 0).forEach(route -> w.addToList(true, "Удален элемент с id: " + route.getId()));
-            list.removeIf(route -> route.compareTo(newRoute) > 0);
-            Collections.sort(list);
+            list.removeIf(route -> {
+                boolean bool = route.compareTo(newRoute) > 0;
+                if (bool)
+                    sqlRun.add(new RemoveById(com.getUser(), newRoute.getId()));
+                return bool;
+            });
         }
 
         w.addToList(false,"end");
@@ -237,17 +247,17 @@ public class CommanderServer {
     /**
      * Добавляет новый элемент в коллекцию, если его значение меньше, чем у наименьшего элемента этой коллекции
      */
-    public static Writer addIfMin(Collection c, Command com) {
+    public static Writer addIfMin(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
-        int id = c.getRandId();
+        int id = c.getNextId();
         Route newRoute = routeWithId((Route) com.returnObj(), id);
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
-            if (newRoute.compareTo(list.get(0)) < 0) {
+            if (newRoute.compareTo(list.stream().sorted().findFirst().orElse(newRoute)) < 0) {
                 list.add(newRoute);
                 w.addToList(true, "Элемент успешно добавлен");
+                sqlRun.add(new CommandWithObj(com.getUser(), Commands.ADD, newRoute));
             } else w.addToList(true, "Элемент не является минимальным в списке");
-            Collections.sort(list);
         }
 
         w.addToList(false,"end");
@@ -258,9 +268,9 @@ public class CommanderServer {
      * Считывает и исполняет скрипт из указанного файла.
      * В скрипте содержатся команды в таком же виде, в котором их вводит пользователь в интерактивном режиме
      */
-    public static Writer executeScript(Collection c, Command command) {
+    public static Writer executeScript(Collection c, Command command, PostgreSQL sqlRun) {
         Writer w = new Writer();
-        /*String s = (String) command.returnObj();
+        String s = (String) command.returnObj();
         boolean programIsWorking = true;
         try (Reader reader = new Reader(s)) {
             if (RecursionHandler.isContains(s)) {
@@ -270,7 +280,7 @@ public class CommanderServer {
                 String line = reader.read(w);
                 while (line != null && programIsWorking) {
                     com = AbstractReader.splitter(line);
-                    programIsWorking = Commander.switcher(w, reader, c, com[0], com[1]);
+                    programIsWorking = Commander.switcher(w, reader, c, com[0], com[1], sqlRun, command.getUser());
                     w.addToList(false, "\u001B[33m" + "Чтение команды в файле " + s + ": " + "\u001B[0m");
                     line = reader.read(w);
                 }
@@ -289,7 +299,6 @@ public class CommanderServer {
             w.addToList(true, "\u001B[31m" + "Файл содержит неправильные данные" + "\u001B[0m");
             RecursionHandler.removeLast();
         }
-*/
         w.addToList(false,"end");
         return w;
     }
@@ -297,12 +306,13 @@ public class CommanderServer {
     /**
      * Удаляет все элементы из коллекции
      */
-    public static Writer clear(Collection c, Command com) {
+    public static Writer clear(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
             list.clear();
             w.addToList(true, "Доступная вам коллекция очищена");
+            sqlRun.add(com);
         }
 
         w.addToList(false, "end");
@@ -312,17 +322,12 @@ public class CommanderServer {
     /**
      * Удаляет все элементы по его id
      */
-    public static Writer removeById(Collection c, Command com) {
+    public static Writer removeById(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
             Integer id = (Integer) com.returnObj();
-            Route route = null;
-            for (Route r : list) {
-                if (r.getId().equals(id)) {
-                    route = r;
-                }
-            }
+            Route route = c.searchById(id);
             if (route == null) {
                 w.addToList(true, "Такого в дотупной вам коллекции элемента нет");
 
@@ -331,7 +336,7 @@ public class CommanderServer {
             }
             list.remove(route);
             w.addToList(true, "Элемент с id: " + id + " успешно удален");
-            Collections.sort(list);
+            sqlRun.add(com);
         }
 
         w.addToList(false,"end");
@@ -341,7 +346,7 @@ public class CommanderServer {
     /**
      * Перезаписывает элемент списка с указанным id
      */
-    public static Writer update(Collection c, Command com) {
+    public static Writer update(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
@@ -359,8 +364,8 @@ public class CommanderServer {
                 return w;
             }
             list.set(list.indexOf(route), (Route) com.returnObj());
-            Collections.sort(list);
             w.addToList(true, "Элемент с id: " + id + " успешно изменен");
+            sqlRun.add(com);
         }
 
         w.addToList(false,"end");
@@ -370,14 +375,14 @@ public class CommanderServer {
     /**
      * Добавляет элемент в список
      */
-    public static Writer add(Collection c, Command com) {
+    public static Writer add(Collection c, Command com, PostgreSQL sqlRun) {
         Writer w = new Writer();
         List<Route> list = properUser(w, com.getUser(), c);
         if (list != null) {
-            int id = c.getRandId();
+            int id = c.getNextId();
             list.add(routeWithId((Route) com.returnObj(), id));
-            Collections.sort(list);
             w.addToList(true, "Элемент с id: " + id + " успешно добавлен");
+            sqlRun.add(com);
         }
 
         w.addToList(false,"end");

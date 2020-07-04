@@ -119,7 +119,7 @@ public class CommanderClient {
         } catch (NumberFormatException | FailedCheckException e) {
             id = Console.handlerI("Введите int id: ", Utils.routeIdCheck);
         }
-        String name = Console.handlerS("Введите String: name", Utils.routeNameCheck);
+        String name = Console.handlerS("Введите String name: ", Utils.routeNameCheck);
         Route newRoute = toAddWithoutId(name);
         newRoute.setId(id);
         return new CommandWithObj(user, Commands.UPDATE, newRoute);

@@ -2,8 +2,10 @@ package program;
 
 import command.Command;
 import dopFiles.Console;
+import dopFiles.Utils;
 import dopFiles.Writer;
 import exceptions.EndOfFileException;
+import exceptions.FailedCheckException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,16 +23,26 @@ public class ServerWithProperThreads {
     private static final ExecutorService pool = Executors.newCachedThreadPool();
     private static Collection collection;
     private static final AtomicBoolean globalKillFlag = new AtomicBoolean(false);
+    private static PostgreSQL sqlRun;
 
     public static void main(String[] args) {
-        collection = Collection.startFromSave(args);
-        try {
-            ServerSocketChannel ssc = ServerSocketChannel.open();
-            ssc.bind(new InetSocketAddress("localhost", 4329));
-            ssc.configureBlocking(false);
 
+        try (Reader reader = new Reader("properties.txt")){
+            ServerSocketChannel ssc = ServerSocketChannel.open();
+            try {
+                ssc.bind(new InetSocketAddress(args[0], Utils.portCheck.checker(Integer.parseInt(args[1]))));
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException | FailedCheckException e) {
+                ssc.bind(new InetSocketAddress("localhost", 4329));
+            }
+            ssc.configureBlocking(false);
             Writer.writeln("Сервер запущен.");
             logger.info("Сервер запущен. " + ssc.getLocalAddress());
+
+            sqlRun = new PostgreSQL(reader.read(), reader.read(), reader.read(), globalKillFlag);
+            sqlRun.start();
+            collection = Collection.start(sqlRun);
+            collection.getAll(sqlRun);
+
 
             new Thread(() -> {
                 try {
@@ -65,11 +77,11 @@ public class ServerWithProperThreads {
             Writer.writeln("Пренудительное закрытие сервера.");
             logger.error("Пренудительное закрытие сервера.");
             logger.error(e.getLocalizedMessage());
+        } catch (exceptions.IncorrectFileNameException e) {
+            Writer.writeln( "\u001B[31m" + "Неверное имя файла" + "\u001B[0m");
         }
         pool.shutdownNow();
-        SaveManagement.saveToFile(collection);
-        Writer.writeln("Коллекция сохранена");
-        logger.info("Коллекция сохранена");
+        globalKillFlag.set(true);
     }
 
     private static void read(SocketChannel channel, ConcurrentLinkedQueue<ByteBuffer> messages, AtomicBoolean killFlag) {
@@ -86,7 +98,6 @@ public class ServerWithProperThreads {
                     throw new IOException();
                 } else if (read != 0) {
                     //поток обработки
-                    Writer.writeln("Обработка пошла");
                     pool.submit(() -> {
                         try {
                             buf.flip();
@@ -116,7 +127,7 @@ public class ServerWithProperThreads {
         Command command = (Command) objectInputStream.readObject();
         objectInputStream.close();
         buf.clear();
-        Writer w = CommanderServer.switcher(command, collection);
+        Writer w = CommanderServer.switcher(command, collection, sqlRun);
 
         Writer.writeln("Вызвана команада: " + command.getCurrent().toString());
         logger.info("Вызвана команада: " + command.toString());
@@ -144,7 +155,6 @@ public class ServerWithProperThreads {
             while (!(killFlag.get() || globalKillFlag.get())) {
                 ByteBuffer buf;
                 if (!messages.isEmpty()) {
-                    Writer.writeln(messages.size());
                     buf = messages.poll();
                     s.write(buf);
                 }

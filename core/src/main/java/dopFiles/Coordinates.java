@@ -9,7 +9,7 @@ import java.io.Serializable;
  */
 
 public class Coordinates implements Serializable {
-    private int x; //Поле может быть null
+    private int x; //Поле не может быть null
     private Long y; //Значение поля должно быть больше -765, Поле не может быть null
 
     public Coordinates(int x, Long y) {

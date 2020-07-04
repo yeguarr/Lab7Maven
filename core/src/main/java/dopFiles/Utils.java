@@ -11,7 +11,7 @@ public class Utils {
      * Проверка на тип Long
      */
     public static Checker<Long> routeDistanceCheck = (Long L) -> {
-        if (L == null) return null;
+        if (L == null || L == 0) return null;
         else if (L > 1) return L;
         throw new FailedCheckException();
     };
@@ -22,18 +22,30 @@ public class Utils {
         if (I != null && I > 0) return I;
         else throw new FailedCheckException();
     };
+
+    public static Checker<Integer> portCheck = (Integer I) -> {
+        if (I != null && I >= 1 && I <= 65535) return I;
+        else throw new FailedCheckException();
+    };
     /**
      * Проверка на тип String
      */
     public static Checker<String> routeNameCheck = (String S) -> {
-        if (S != null && S.length() != 0) return S;
+        if (S != null && S.length() != 0 && S.length() <= 20) return S;
         else throw new FailedCheckException();
     };
     /**
      * Проверка на тип String
      */
     public static Checker<String> loginCheck = (String S) -> {
-        if (S != null && S.length() != 0) return S;
+        if (S != null && S.length() != 0 && S.length() <= 20) return S;
+        else throw new FailedCheckException();
+    };
+    /**
+     * Проверка на тип String
+     */
+    public static Checker<String> hashCheck = (String S) -> {
+        if (S != null && S.length() == 40) return S;
         else throw new FailedCheckException();
     };
     /**

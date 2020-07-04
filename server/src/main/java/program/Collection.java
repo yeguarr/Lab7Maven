@@ -15,10 +15,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Collection {
 
+    Collection(int SEQUENCE)
+    {
+        ids = SEQUENCE;
+    }
+
     /**
      * Список, в котором хранятся элементы типа program.Route
      */
     public Map<User, List<Route>> map = new ConcurrentHashMap<>();
+
+    public int ids;
     /**
      * Дата создания списка
      */
@@ -27,22 +34,10 @@ public class Collection {
     /**
      * Метод, возвращающий список, удобный для сохранения в формат CSV
      */
-    public static Collection startFromSave(String[] args) {
-        if (args.length > 0) {
-            File saveFile = new File(args[0]);
-            if (saveFile.exists()) {
-                SaveManagement.setFile(saveFile);
-                return SaveManagement.listFromSave();
-            }
-        }
-        else {
-            File saveFile = new File("save.csv");
-            if (saveFile.exists()) {
-                SaveManagement.setFile(saveFile);
-                return SaveManagement.listFromSave();
-            }
-        }
-        return new Collection();
+    public static Collection start(PostgreSQL sql) {
+        Collection c = new Collection(sql.getIds());
+        c.map = sql.getMapOfUsers();
+        return c;
     }
 
     public boolean isUserInMap(User user) {
@@ -79,11 +74,11 @@ public class Collection {
     /**
      * Метод, возвращающий уникальный id
      */
-    public int getRandId() {
-        int id;
-        do {
-            id = (int) (1 + Math.random() * (Integer.MAX_VALUE - 1));
-        } while (this.searchById(id) != null);
-        return id;
+    public int getNextId() {
+        return ids++;
+    }
+
+    public void getAll(PostgreSQL sqlRun) {
+        sqlRun.setRoutes(map);
     }
 }
